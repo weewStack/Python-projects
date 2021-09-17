@@ -1,7 +1,36 @@
+# Copyright 2021 <WeeW Stack >
+
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files(the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify,
+# merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
+# For more content visit the WeeW Stack Channel on YouTube
+
 from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
+
 import threading
+
+# python -m pip install --upgrade matplotlib
+import matplotlib.pyplot as plt  # pip install matplotlib
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
+                                               NavigationToolbar2Tk)
 
 
 class RootGUI():
@@ -11,13 +40,15 @@ class RootGUI():
         self.root.title("Serial communication")
         self.root.geometry("360x120")
         self.root.config(bg="white")
-
         self.serial = serial
         self.data = data
 
+        # Call function when the GUI is closed
         self.root.protocol("WM_DELETE_WINDOW", self.close_window)
 
     def close_window(self):
+        '''Class to manage the ending of the gui, it is very import
+        as it is managing the ending of threadings that were not stopped'''
         print("Closing the window and exit")
         self.root.destroy()
         self.serial.SerialClose(self)
@@ -28,7 +59,7 @@ class RootGUI():
 class ComGui():
     def __init__(self, root, serial, data):
         '''
-        Initialize the connexion GUI and initialize the main widgets 
+        Initialize the connexion GUI and initialize the main widgets
         '''
         # Initializing the Widgets
         self.root = root
@@ -117,48 +148,78 @@ class ComGui():
 
     def connect_ctrl(self, widget):
         '''
-        Mehtod to keep the connect button disabled if all the 
+        Mehtod to keep the connect button disabled if all the
         conditions are not cleared
         '''
         print("Connect ctrl")
-        if "-" in self.clicked_com.get() or "-" in self.clicked_bd.get():
-            self.btn_connect["state"] = "disable"
+        # Checking the logic consistency to keep the connection btn
+        if "-" in self.clicked_bd.get() or "-" in self.clicked_com.get():
+            self.btn_connect["state"] = "disabled"
         else:
             self.btn_connect["state"] = "active"
 
     def com_refresh(self):
-
+        print("Refresh")
+        # Get the Widget destroyed
         self.drop_com.destroy()
+
+        # Refresh the list of available Coms
         self.ComOptionMenu()
+
+        # Publish the this new droplet
         self.drop_com.grid(column=2, row=2, padx=self.padx)
+
+        # Just in case to secure the connect logic
         logic = []
         self.connect_ctrl(logic)
 
     def serial_connect(self):
-
+        '''
+        Method that Updates the GUI during connect / disconnect status
+        Manage serials and data flows during connect / disconnect status
+        '''
         if self.btn_connect["text"] in "Connect":
+            # Start the serial communication
             self.serial.SerialOpen(self)
+
+            # If connection established move on
             if self.serial.ser.status:
+                # Update the COM manager
                 self.btn_connect["text"] = "Disconnect"
                 self.btn_refresh["state"] = "disable"
                 self.drop_baud["state"] = "disable"
                 self.drop_com["state"] = "disable"
                 InfoMsg = f"Successful UART connection using {self.clicked_com.get()}"
                 messagebox.showinfo("showinfo", InfoMsg)
+
+                # Display the channel manager
                 self.conn = ConnGUI(self.root, self.serial, self.data)
 
+                # Start Sync threading
                 self.serial.t1 = threading.Thread(
-                    target=self.serial.SerialSync, args=(self,), daemon=True)
+                    target=self.serial.SerialSync, args=(self, ), daemon=True)
                 self.serial.t1.start()
+
             else:
                 ErrorMsg = f"Failure to estabish UART connection using {self.clicked_com.get()} "
                 messagebox.showerror("showerror", ErrorMsg)
         else:
+
+            # self.t1.terminate()
             self.serial.threading = False
-            self.data.ClearData()
-            self.conn.ConnGUIClose()
-            # Start closing the connection
+
+            # Closing the Serial COM
+            # Close the serial communication
             self.serial.SerialClose(self)
+
+            # Closing the Conn Manager
+            # Destroy the channel manager
+            self.conn.ConnGUIClose()
+
+            # Start Sync threading
+            # Clear all the data from the Data manager
+            self.data.ClearData()
+
             InfoMsg = f"UART connection using {self.clicked_com.get()} is now closed"
             messagebox.showwarning("showinfo", InfoMsg)
             self.btn_connect["text"] = "Connect"
@@ -169,13 +230,16 @@ class ComGui():
 
 class ConnGUI():
     def __init__(self, root, serial, data):
+        '''
+        Initialize main Widgets for communication GUI
+        '''
         self.root = root
         self.serial = serial
         self.data = data
 
-        self.frame = LabelFrame(
-            root, text="Connection Manager", padx=5, pady=5, bg='white', width=60)
-
+        # Build ConnGui Static Elements
+        self.frame = LabelFrame(root, text="Connection Manager",
+                                padx=5, pady=5, bg="white", width=60)
         self.sync_label = Label(
             self.frame, text="Sync Status: ", bg="white", width=15, anchor="w")
         self.sync_status = Label(
@@ -188,6 +252,7 @@ class ConnGUI():
 
         self.btn_start_stream = Button(self.frame, text="Start", state="disabled",
                                        width=5, command=self.start_stream)
+
         self.btn_stop_stream = Button(self.frame, text="Stop", state="disabled",
                                       width=5, command=self.stop_stream)
 
@@ -198,7 +263,6 @@ class ConnGUI():
         self.btn_kill_chart = Button(self.frame, text="-", state="disabled",
                                      width=5, bg="white", fg="#CC252C",
                                      command=self.kill_chart)
-
         self.save = False
         self.SaveVar = IntVar()
         self.save_check = Checkbutton(self.frame, text="Save data", variable=self.SaveVar,
@@ -206,16 +270,23 @@ class ConnGUI():
                                       command=self.save_data)
 
         self.separator = ttk.Separator(self.frame, orient='vertical')
+
         # Optional Graphic parameters
         self.padx = 20
         self.pady = 15
 
+        # Extending the GUI
         self.ConnGUIOpen()
+        self.chartMaster = DisGUI(self.root, self.serial, self.data)
 
     def ConnGUIOpen(self):
-        self.root.geometry('800x120')
+        '''
+        Method to display all the widgets
+        '''
+        self.root.geometry("800x120")
         self.frame.grid(row=0, column=4, rowspan=3,
                         columnspan=5, padx=5, pady=5)
+
         self.sync_label.grid(column=1, row=1)
         self.sync_status.grid(column=2, row=1)
 
@@ -231,9 +302,11 @@ class ConnGUI():
         self.save_check.grid(column=4, row=2, columnspan=2)
         self.separator.place(relx=0.58, rely=0, relwidth=0.001, relheight=1)
 
-        self.chartMaster = DisGUI(self.root, self.serial, self.data)
-
     def ConnGUIClose(self):
+        '''
+        Method to close the connection GUI and destorys the widgets
+        '''
+        # Must destroy all the element so they are not kept in Memory
         for widget in self.frame.winfo_children():
             widget.destroy()
         self.frame.destroy()
@@ -246,45 +319,89 @@ class ConnGUI():
         pass
 
     def new_chart(self):
-        self.chartMaster.AddChannelMaster()
+        '''
+        Method that will add a new char with all the options 
+        '''
+        try:
+            self.chartMaster.AddChannelMaster()
+        except:
+            self.chartMaster = DisGUI(self.root, self.serial, self.data)
 
     def kill_chart(self):
-        pass
+        '''
+        Method that will remove a chart and kill all the widgets inside it
+        '''
+        try:
+
+            if len(self.chartMaster.frames) > 0:
+                totalFrame = len(self.chartMaster.frames)-1
+                self.chartMaster.frames[totalFrame].destroy()
+                self.chartMaster.frames.pop()
+                self.chartMaster.figs.pop()
+                self.chartMaster.ControlFrames.pop()
+                self.chartMaster.AdjustRootFrame()
+        except:
+            pass
 
     def save_data(self):
         pass
 
 
+# Class to setup the data display GUI
 class DisGUI():
     def __init__(self, root, serial, data):
+        '''
+        Method to initiate the objects that will be used to manage the GUI
+        '''
         self.root = root
         self.serial = serial
         self.data = data
-
+        # Master Frame controls
         self.frames = []
+        self.framesCol = 0
+        self.framesRow = 4
+        self.totalframes = 0
+
+        self.figs = []
+
+        # The control Frame
+        self.ControlFrames = []
 
     def AddChannelMaster(self):
+        '''
+        This method is a group of methods that will be used to generate a new frame
+        that will include a chart and all the control Widgets
+        '''
         self.AddMasterFrame()
         self.AdjustRootFrame()
+        self.AddGraph()
+        self.AddBtnFrame()
 
     def AddMasterFrame(self):
+        '''
+        This Method will add a new master frame wich will control all the element inside
+        including the chart, the btns and the Drops
+        '''
         self.frames.append(LabelFrame(self.root, text=f"Display Manager-{len(self.frames)+1}",
                                       pady=5, padx=5, bg="white"))
         self.totalframes = len(self.frames)-1
-
+        # print(f'Total frames:{self.totalframes}')
         if self.totalframes % 2 == 0:
             self.framesCol = 0
         else:
             self.framesCol = 9
-
+        # print(f'Col: {self.framesCol}')
         self.framesRow = 4 + 4 * int(self.totalframes / 2)
-
+        # print(f'Row: {self.framesRow}')
         self.frames[self.totalframes].grid(padx=5,
                                            column=self.framesCol, row=self.framesRow, columnspan=8, sticky=NW)
 
     def AdjustRootFrame(self):
+        '''
+        This Method will generate the code related to adjusting
+        the main root Gui based on the number of added GUI
+        '''
         self.totalframes = len(self.frames)-1
-        # print("Frame adjust")
         if self.totalframes > 0:
             RootW = 800*2
 
@@ -297,9 +414,50 @@ class DisGUI():
             RootH = 120 + 430 * (int(self.totalframes/2)+1)
         self.root.geometry(f"{RootW}x{RootH}")
 
+    def AddGraph(self):
+        '''
+            This method will add setup the figure and the plot that will be used later on
+            All the data will be inside the list to get an easier access later on
+            '''
+        # Setting up the plot for the each Frame
+        self.figs.append([])
+        # Initialize figures
+        self.figs[self.totalframes].append(plt.Figure(figsize=(7, 5), dpi=80))
+        # Initialize the plot
+        self.figs[self.totalframes].append(
+            self.figs[self.totalframes][0].add_subplot(111))
+        # Initialize the chart
+        self.figs[self.totalframes].append(FigureCanvasTkAgg(
+            self.figs[self.totalframes][0], master=self.frames[self.totalframes]))
+
+        self.figs[self.totalframes][2].get_tk_widget().grid(
+            column=1, row=0, columnspan=4, rowspan=17,  sticky=N)
+
+    def AddBtnFrame(self):
+        '''
+        Method to add the bottons to be used to add further channels 
+        the button need to use a partial lib when calling the libary so it can keep the right 
+        Widget target --> Further details in the YouTube WeeW-Stack
+        '''
+        btnH = 2
+        btnW = 4
+        self.ControlFrames.append([])
+        self.ControlFrames[self.totalframes].append(LabelFrame(self.frames[self.totalframes],
+                                                               pady=5, bg="white"))
+        self.ControlFrames[self.totalframes][0].grid(
+            column=0, row=0, padx=5, pady=5,  sticky=N)
+
+        self.ControlFrames[self.totalframes].append(Button(self.ControlFrames[self.totalframes][0], text="+",
+                                                           bg="white", width=btnW, height=btnH))
+        self.ControlFrames[self.totalframes][1].grid(
+            column=0, row=0, padx=5, pady=5)
+        self.ControlFrames[self.totalframes].append(Button(self.ControlFrames[self.totalframes][0], text="-",
+                                                           bg="white", width=btnW, height=btnH))
+        self.ControlFrames[self.totalframes][2].grid(
+            column=1, row=0, padx=5, pady=5)
+
 
 if __name__ == "__main__":
     RootGUI()
     ComGui()
     ConnGUI()
-    DisGUI()

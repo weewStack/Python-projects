@@ -1,23 +1,58 @@
-import serial.tools.list_ports
+# Copyright 2021 <WeeW Stack >
+
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files(the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify,
+# merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
+# For more content visit the WeeW Stack Channel on YouTube
+# Secure the UART serial communication with MCU
+
+
+import serial.tools.list_ports  # pip install pyserial
 import time
 
 
 class SerialCtrl():
     def __init__(self):
-        self.com_list = []
+        '''
+        Initializing the main varialbles for the serial data
+        '''
         self.sync_cnt = 200
 
     def getCOMList(self):
+        '''
+        Method that get the lost of available coms in the system
+        '''
         ports = serial.tools.list_ports.comports()
         self.com_list = [com[0] for com in ports]
         self.com_list.insert(0, "-")
 
-    def SerialOpen(self, gui):
+    def SerialOpen(self, ComGUI):
+        '''
+        Method to setup the serial connection and make sure to go for the next only 
+        if the connection is done properly
+        '''
+
         try:
             self.ser.is_open
         except:
-            PORT = gui.clicked_com.get()
-            BAUD = gui.clicked_bd.get()
+            PORT = ComGUI.clicked_com.get()
+            BAUD = ComGUI.clicked_bd.get()
             self.ser = serial.Serial()
             self.ser.baudrate = BAUD
             self.ser.port = PORT
@@ -25,20 +60,24 @@ class SerialCtrl():
 
         try:
             if self.ser.is_open:
+                print("Already Open")
                 self.ser.status = True
             else:
-                PORT = gui.clicked_com.get()
-                BAUD = gui.clicked_bd.get()
+                PORT = ComGUI.clicked_com.get()
+                BAUD = ComGUI.clicked_bd.get()
                 self.ser = serial.Serial()
                 self.ser.baudrate = BAUD
                 self.ser.port = PORT
-                self.ser.timeout = 0.1
+                self.ser.timeout = 0.01
                 self.ser.open()
                 self.ser.status = True
         except:
             self.ser.status = False
 
     def SerialClose(self, gui):
+        '''
+        Method used to close the UART communication
+        '''
         try:
             self.ser.is_open
             self.ser.write(gui.data.StopStream.encode())
@@ -48,7 +87,13 @@ class SerialCtrl():
             self.ser.status = False
 
     def SerialSync(self, gui):
+        '''
+        Method to make sure that the MCU is using the same synchronizing protocol
+        then establish the communication
+        This method will show if the Sync is ok or failed + shows the number of available channels
+        '''
         self.threading = True
+
         time.sleep(0.2)
         cnt = 0
         while self.threading:
@@ -57,7 +102,6 @@ class SerialCtrl():
                 gui.conn.sync_status["text"] = "..Sync.."
                 gui.conn.sync_status["fg"] = "orange"
                 gui.data.RowMsg = self.ser.readline()
-                print(gui.data.RowMsg)
                 gui.data.DecodeMsg()
                 if gui.data.sync_ok in gui.data.msg[0]:
                     if int(gui.data.msg[1]) > 0:
@@ -70,16 +114,14 @@ class SerialCtrl():
                         gui.conn.ch_status["fg"] = "green"
                         gui.conn.ch_status["text"] = gui.data.msg[1]
                         gui.data.SynchChannel = int(gui.data.msg[1])
-                        self.threading = False
                         gui.data.GenChannels()
                         gui.data.buildYdata()
+                        self.threading = False
                         break
-                if self.threading == False:
-                    break
-
             except Exception as e:
                 print(e)
             cnt += 1
+
             if self.threading == False:
                 break
             if cnt > self.sync_cnt:

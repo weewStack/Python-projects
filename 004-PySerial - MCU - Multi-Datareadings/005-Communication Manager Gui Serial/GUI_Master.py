@@ -24,7 +24,6 @@
 from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
-
 import threading
 
 
@@ -38,12 +37,9 @@ class RootGUI():
         self.serial = serial
         self.data = data
 
-        # Call function when the GUI is closed
         self.root.protocol("WM_DELETE_WINDOW", self.close_window)
 
     def close_window(self):
-        '''Class to manage the ending of the gui, it is very import 
-        as it is managing the ending of threadings that were not stopped'''
         print("Closing the window and exit")
         self.root.destroy()
         self.serial.SerialClose(self)
@@ -190,19 +186,16 @@ class ComGui():
                 # Display the channel manager
                 self.conn = ConnGUI(self.root, self.serial, self.data)
 
-                # Start Sync threading
                 self.serial.t1 = threading.Thread(
-                    target=self.serial.SerialSync, args=(self, ), daemon=True)
+                    target=self.serial.SerialSync, args=(self,),  daemon=True
+                )
                 self.serial.t1.start()
 
             else:
                 ErrorMsg = f"Failure to estabish UART connection using {self.clicked_com.get()} "
                 messagebox.showerror("showerror", ErrorMsg)
         else:
-
-            # self.t1.terminate()
             self.serial.threading = False
-
             # Closing the Serial COM
             # Close the serial communication
             self.serial.SerialClose(self)
@@ -210,9 +203,6 @@ class ComGui():
             # Closing the Conn Manager
             # Destroy the channel manager
             self.conn.ConnGUIClose()
-
-            # Start Sync threading
-            # Clear all the data from the Data manager
             self.data.ClearData()
 
             InfoMsg = f"UART connection using {self.clicked_com.get()} is now closed"
